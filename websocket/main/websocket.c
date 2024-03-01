@@ -7,33 +7,7 @@
 #include <toggle.h>
 #include <pushBtn.h>
 
-static const char* TAG = "HTTPD SERVER";
-
 extern const char html[] asm("_binary_test_html_start");
-
-esp_err_t uri_test(httpd_req_t* req){
-  ESP_LOGI(TAG , "uri_handler is strating\n");
-  httpd_resp_sendstr(req, html);
-  printf("hello\n");
-  return ESP_OK;
-}
-
-esp_err_t uri_resp(httpd_req_t* req){
-   char buffer[100];
-   memset(buffer, 0, sizeof(buffer));
-   httpd_req_recv(req, buffer, req->content_len);
-   cJSON *carrier = cJSON_Parse(buffer);
-   if (carrier != NULL) {
-     cJSON *level = cJSON_GetObjectItem(carrier, "level");
-     cJSON *gpio = cJSON_GetObjectItem(carrier, "gpio");
-     printf("\nGPIO -> %d\nLEVEL -> %s\n",gpio->valueint,
-            (int)level->valueint==1? "true": "false");
-   }else {
-       printf("invalid request\n");
-   }
-    cJSON_Delete(carrier);
-   return ESP_OK;
-}
 
 static int client_id;
 
@@ -42,16 +16,29 @@ static esp_err_t uri_ws(httpd_req_t *req) {
    if (req->method == HTTP_GET)
        return ESP_OK;
 
+   char *response = 0;
+
    httpd_ws_frame_t ws_recv= {
-       /* memset(&ws_frame, 0, sizeof(httpd_ws_frame_t)); */
        .type = HTTPD_WS_TYPE_TEXT,
        .payload = malloc(1024),
    };
-   httpd_ws_recv_frame(req, &ws_recv, 1024);
-   printf("ws payload: %s\n", ws_recv.payload);
-   free(ws_recv.payload);
 
-   char *response = "connected";
+   httpd_ws_recv_frame(req, &ws_recv, 1024);
+   printf("payload: %.*s\n",ws_recv.len, ws_recv.payload);
+
+   cJSON *carrier = cJSON_Parse((char*)ws_recv.payload);
+   if (carrier != NULL) {
+     cJSON *level = cJSON_GetObjectItem(carrier, "level");
+     cJSON *gpio = cJSON_GetObjectItem(carrier, "gpio");
+     printf("\nGPIO -> %d\nLEVEL -> %s\n",gpio->valueint,
+            (int)level->valueint==1? "true": "false");
+
+      response  = "valid request ['_']\n";
+   }else {
+      response  = "invalid request [-_-]\n";
+   }
+
+   free(ws_recv.payload);
    httpd_ws_frame_t ws_response = {.final = true,
                                    .fragmented = false,
                                    .type = HTTPD_WS_TYPE_TEXT,
@@ -60,25 +47,10 @@ static esp_err_t uri_ws(httpd_req_t *req) {
    return httpd_ws_send_frame(req, &ws_response);
 }
 
-
 void server() {
    httpd_handle_t httpd_handler = NULL;
    httpd_config_t httpd_config = HTTPD_DEFAULT_CONFIG();
    httpd_start(&httpd_handler, &httpd_config);
-
-   httpd_uri_t httpd_uri = {
-       .uri = "/",
-       .method = HTTP_GET,
-       .handler = uri_test,
-   };
-   httpd_register_uri_handler(httpd_handler, &httpd_uri);
-
-   httpd_uri_t toggle_uri = {
-       .uri = "/toggle",
-       .method = HTTP_POST,
-       .handler = uri_resp,
-   };
-   httpd_register_uri_handler(httpd_handler, &toggle_uri);
 
    httpd_uri_t ws_uri = {
        .uri = "/ws",
@@ -87,7 +59,6 @@ void server() {
        .is_websocket = true,
    };
    httpd_register_uri_handler(httpd_handler, &ws_uri);
-
 }
 
 void mdns_service() {
@@ -106,7 +77,7 @@ void mdns_service() {
 void app_main() {
   // initializing and connecting to the given AP
   connect_init();
-  connect_sta("nepaldigisys", "NDS_0ffice", 10000);
+  connect_sta("podamibe", "Chobhar570))", 10000);
 
   //
   mdns_service();
