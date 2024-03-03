@@ -19,7 +19,7 @@ This week, I mainly focused on very small project related to specific part of in
   - then, I hosted a site with some html used
   - I also used MDNS to set a domain name(void-esp32.local)
   - Also I learnt to receive POST data (sent from the computer as client) 
-  - I then like before parse the POSTED data(if valid)    
+  - I then parsed the POSTED data(if valid) and get required content    
 - websocket
   - finally as the final project of the week, i learnt to use the websocket protocol
   - this was somewhat similar to https except it was duplex and much faster
