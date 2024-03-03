@@ -18,16 +18,14 @@ static char *buffer;
 // for https certification
 extern const uint8_t pem[] asm("_binary_randomuser_pem_start");
 
-void phraser(char *data) {
-}
-
+// for getting the data from HTTPS
 esp_err_t client_event(esp_http_client_event_t *evt) {
   chunk_payload_t *chunk = evt->user_data;
   switch (evt->event_id) {
   case HTTP_EVENT_ON_DATA:
     ESP_LOGI("DATA_SIZE", "%d", evt->data_len);
 
-    /* chunk */
+    // for receiving data in chuncks
     chunk->buffer =
         realloc(chunk->buffer, chunk->buffer_index + evt->data_len + 1);
     memcpy(&chunk->buffer[chunk->buffer_index], (uint8_t *)evt->data,
@@ -35,21 +33,19 @@ esp_err_t client_event(esp_http_client_event_t *evt) {
     chunk->buffer_index += evt->data_len;
     chunk->buffer[chunk->buffer_index] = 0;
 
-    /* printf("%s\n", chunk->buffer); */
     break;
   default:
     break;
   }
   buffer = chunk->buffer;
   return ESP_OK;
-  /* phraser(chunk->buffer); */
 }
 
 void app_main(void) {
   chunk_payload_t chunk = {0};
 
   nvs_flash_init();
-esp_netif_init();
+  esp_netif_init();
   esp_event_loop_create_default();
   example_connect();
   esp_http_client_config_t client_config = {.url = "https://randomuser.me/api/",
@@ -62,9 +58,13 @@ esp_netif_init();
 
   esp_http_client_perform(client_handle);
 
+  cJSON *info = cJSON_Parse(buffer);
+
   printf("%s\n", buffer);
 
-  cJSON *info = cJSON_Parse(buffer);
+  esp_http_client_cleanup(client_handle);
+
+  // getting the required data from json
   if (info == NULL) {
     printf("null\n\n\n");
   } else {
@@ -74,9 +74,7 @@ esp_netif_init();
     cJSON *info2 = cJSON_GetObjectItemCaseSensitive(info, "info");
     cJSON *seed = cJSON_GetObjectItemCaseSensitive(info2, "seed");
     printf("\nseed: %s\n", seed->valuestring);
-    printf("gender: %s\n", gender->valuestring);
+    printf("gender: %s\n\n", gender->valuestring);
   }
-  esp_http_client_cleanup(client_handle);
-
   example_disconnect();
 }
