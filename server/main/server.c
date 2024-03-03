@@ -1,23 +1,26 @@
 #include <esp_http_server.h>
 #include <esp_log.h>
-#include <connect.h>
-#include <toggle.h>
 #include <mdns.h>
 #include <cJSON.h>
 
+// user defined header
+#include <connect.h>
+#include <toggle.h>
+
+
 static const char* TAG = "HTTPD SERVER";
 
+// reading the html file
 extern const char html[] asm("_binary_test_html_start");
 
-// response
-esp_err_t uri_test(httpd_req_t* req){
-  ESP_LOGI(TAG , "uri_handler is strating\n");
+// setup for the home page
+esp_err_t uri_home(httpd_req_t* req){
+  ESP_LOGI(TAG , "uri_handler is starting\n");
   httpd_resp_sendstr(req, html);
-  printf("hello\n");
   return ESP_OK;
 }
 
-//
+// setup foh receiving command from client
 esp_err_t uri_resp(httpd_req_t* req){
    char buffer[100];
    memset(buffer, 0, sizeof(buffer));
@@ -35,26 +38,28 @@ esp_err_t uri_resp(httpd_req_t* req){
    return ESP_OK;
 }
 
+// setup for the server
 void server() {
   httpd_handle_t httpd_handler = NULL;
   httpd_config_t httpd_config = HTTPD_DEFAULT_CONFIG();
+  httpd_start(&httpd_handler, &httpd_config);
 
   httpd_uri_t httpd_uri = {
       .uri = "/",
       .method = HTTP_GET,
-      .handler = uri_test,
+      .handler = uri_home,
   };
+  httpd_register_uri_handler(httpd_handler, &httpd_uri);
+
   httpd_uri_t toggle_uri = {
       .uri = "/toggle",
       .method = HTTP_POST,
       .handler = uri_resp,
   };
-
-  httpd_start(&httpd_handler, &httpd_config);
-  httpd_register_uri_handler(httpd_handler, &httpd_uri);
   httpd_register_uri_handler(httpd_handler, &toggle_uri);
 }
 
+//setup for the mdns
 void mdns_service() {
   // initialize mnds
   esp_err_t esp = mdns_init();
@@ -63,20 +68,18 @@ void mdns_service() {
     return;
   }
 
-  // setting the names
-  mdns_hostname_set("ion-esp32");
+  //setup the names
+  mdns_hostname_set("void-esp32");
   mdns_instance_name_set("learn to use the server");
 }
 
 void app_main() {
   // initializing and connecting to the given AP
   connect_init();
-  connect_sta("nepaldigisys", "NDS_0ffice", 10000);
+  connect_sta("podamibe", "Chobhar570))", 10000);
 
-  //
   mdns_service();
 
-  // starting the server
   server();
 
 }
