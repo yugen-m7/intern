@@ -76,7 +76,7 @@ void mdns_service() {
 void app_main() {
   // initializing and connecting to the given AP
   connect_init();
-  connect_sta("podamibe", "Chobhar570))", 10000);
+  connect_sta("nepaldigisys", "NDS_0ffice", 10000);
 
   mdns_service();
 

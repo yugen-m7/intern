@@ -6,7 +6,6 @@
 #include <freertos/event_groups.h>
 #include <netdb.h>
 #include <nvs_flash.h>
-/* #include "connect.h" */
 
 static char *TAG = "WIFI_CONNECT";
 
@@ -37,7 +36,6 @@ void event_handler(void *event_handler_arg, esp_event_base_t event_base,
     break;
   }
 }
-
 
 void connect_init(void) {
   nvs_flash_init();
