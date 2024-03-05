@@ -7,7 +7,6 @@
 #include <toggle.h>
 #include <pushBtn.h>
 
-extern const char html[] asm("_binary_test_html_start");
 
 static int client_id;
 
