@@ -10,6 +10,7 @@
 #include <nvs_flash.h>
 #include <protocol_examples_common.h>
 #include <stdio.h>
+#include "esp_app_desc.h"
 #include "esp_ota_ops.h"
 
 #define intr_button 0
@@ -44,14 +45,15 @@ void wifi_setup() {
   esp_event_loop_create_default();
   example_connect();
 }
-esp_err_t client_event(esp_http_client_event_t *evt) { return ESP_OK; };
+
+esp_err_t client_event(esp_http_client_event_t *evt) { 
+  return ESP_OK; 
+}
+
 void ota_setup() {
+  wifi_setup();
   while (1) {
     xSemaphoreTake(sema_handler, portMAX_DELAY);
-    wifi_setup();
-
-    printf("\n");
-    ESP_LOGI("STATUS", "Starting Update\n");
 
     esp_http_client_config_t client_config = {
       .url = "https://drive.google.com/u/0/uc?id=1dbGPJuEjVX-0-c1mLOa-2iWjl2lDcFTR&export=download",
@@ -62,18 +64,44 @@ void ota_setup() {
     esp_https_ota_config_t ota_config = {
       .http_config = &client_config,
     };
-    if (esp_https_ota(&ota_config) == ESP_OK) {
-      ESP_LOGI("UPDATE STATUS", "Update of Succesful");
-      printf("Restarting in 5 seconds");
+
+    esp_https_ota_handle_t ota_handle;
+
+    if(esp_https_ota_begin(&ota_config, &ota_handle)!=ESP_OK){
+      ESP_LOGE("ERROR", "OTA couldn't be started");
+      example_connect();
+      continue;
+    }
+
+    // esp_app_desc_t app_info;
+    // if(esp_https_ota_get_img_desc(&ota_handle, &app_info)!= ESP_OK){
+    //   ESP_LOGE("ERROR", "Couldn't get the current version");
+    // }
+
+    while (true)
+    {
+      esp_err_t ota_result = esp_https_ota_perform(ota_handle);
+      if (ota_result != ESP_ERR_HTTPS_OTA_IN_PROGRESS)
+        break;
+    }
+
+    if (esp_https_ota_finish(ota_handle) != ESP_OK)
+    {
+      ESP_LOGE("ERROR", "esp_https_ota_finish failed");
+      example_disconnect();
+      continue;
+    }
+    else
+  {
+      printf("restarting in 5 seconds\n");
       vTaskDelay(pdMS_TO_TICKS(5000));
       esp_restart();
-    }else{
-    ESP_LOGE("UPDATE STATUS", "FAILED");
-    };
-
-    // esp_http_client_perform(client_handle);
-    // esp_http_client_cleanup(client_handle);
+    }
+    ESP_LOGE("ERROR", "Failed to update firmware");
   }
+
+  // esp_http_client_perform(client_handle);
+  // esp_http_client_cleanup(client_handle);
 }
 
 void app_main(void) {
@@ -83,7 +111,6 @@ void app_main(void) {
   // configuration for isr push button
 
   intr_setup();
-
 
   const esp_partition_t *running_partition = esp_ota_get_running_partition();
   esp_app_desc_t running_partition_description;
