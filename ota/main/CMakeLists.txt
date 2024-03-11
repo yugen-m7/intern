@@ -1,4 +1,4 @@
 idf_component_register(SRCS "ota.c"
                     INCLUDE_DIRS "."
   EMBED_TXTFILES
-  "../pem/randomuser.pem")
+  "../pem/drive.pem")
