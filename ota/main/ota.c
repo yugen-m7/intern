@@ -20,13 +20,14 @@ SemaphoreHandle_t sema_handler;
 const int software_version = 1;
 
 // for https certification
-extern const uint8_t cert_pem[] asm("_binary_drive_pem_start");
+// extern const uint8_t cert_pem[] asm("_binary_drive_pem_start");
 
 void IRAM_ATTR intr_button_pushed() {
   xSemaphoreGiveFromISR(sema_handler, pdFALSE);
 }
 
-void intr_setup() {
+void intr_setup() 
+{
   gpio_config_t intr_button_config = {
     .intr_type = GPIO_INTR_POSEDGE,
     .mode = GPIO_MODE_INPUT,
@@ -50,15 +51,18 @@ esp_err_t client_event(esp_http_client_event_t *evt) {
   return ESP_OK; 
 }
 
-void ota_setup() {
+void ota_setup() 
+{
   wifi_setup();
-  while (1) {
+  while (1) 
+  {
     xSemaphoreTake(sema_handler, portMAX_DELAY);
 
     esp_http_client_config_t client_config = {
-      .url = "https://drive.google.com/u/0/uc?id=1dbGPJuEjVX-0-c1mLOa-2iWjl2lDcFTR&export=download",
-      .event_handler = client_event,
-      .cert_pem = (char *)cert_pem};
+      // .url = "https://drive.google.com/u/0/uc?id=1dbGPJuEjVX-0-c1mLOa-2iWjl2lDcFTR&export=download",
+      .url = "http://192.168.1.73:8000/ota.bin",
+      // .cert_pem = (char *)cert_pem,
+      .event_handler = client_event};
     esp_http_client_init(&client_config);
 
     esp_https_ota_config_t ota_config = {
@@ -90,9 +94,7 @@ void ota_setup() {
       ESP_LOGE("ERROR", "esp_https_ota_finish failed");
       example_disconnect();
       continue;
-    }
-    else
-  {
+    } else {
       printf("restarting in 5 seconds\n");
       vTaskDelay(pdMS_TO_TICKS(5000));
       esp_restart();
@@ -104,7 +106,8 @@ void ota_setup() {
   // esp_http_client_cleanup(client_handle);
 }
 
-void app_main(void) {
+void app_main(void) 
+{
   printf("\n");
   ESP_LOGI("Software Version", "%d\n", software_version);
   sema_handler = xSemaphoreCreateBinary();

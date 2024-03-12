@@ -67,7 +67,6 @@ esp_err_t connect_sta(char *SSID, char *PASSWORD, int TIMEOUT) {
       xEventGroupWaitBits(wifi_events, CONNECTED | DISCONNECTED, true, false,
                           pdMS_TO_TICKS(TIMEOUT));
   if (result) {
-    printf("Wifi Connected Successfully\n");
     return ESP_OK;
 
   } else {

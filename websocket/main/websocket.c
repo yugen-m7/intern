@@ -7,7 +7,6 @@
 #include <toggle.h>
 #include <pushBtn.h>
 
-
 static int client_id;
 
 static esp_err_t uri_ws(httpd_req_t *req) {
