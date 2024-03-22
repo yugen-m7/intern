@@ -33,6 +33,9 @@ static void mqtt_event_handler(void *event_handler_arg, esp_event_base_t event_b
     case MQTT_EVENT_UNSUBSCRIBED:
       ESP_LOGI(TAG_M, "MQTT_EVENT_UNSUBSCRIBED");
       break;
+    case MQTT_EVENT_PUBLISHED:
+      ESP_LOGI(TAG_M, "MQTT_EVENT_PUBLISHED");
+      break;
     case MQTT_EVENT_DATA:
       ESP_LOGI(TAG_M, "MQTT_EVENT_DATA");
         printf("%.*s: ", event->topic_len, event->topic);
@@ -44,17 +47,31 @@ static void mqtt_event_handler(void *event_handler_arg, esp_event_base_t event_b
     default:
       break;
   }
-
 }
 
-void mqtt_init(){
 
+static void mqtt_publish(void* args)
+{
+    // uint8_t* data = 0; 
+    char* message="this is just a test";
+    esp_mqtt_client_handle_t client = ((esp_mqtt_client_handle_t)args);
+    while (true)
+    {
+        esp_mqtt_client_publish(client, "esp", message, strlen((char*)message), 1, 0);
+        // data++;
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+}
+
+static void mqtt_init(){
   esp_mqtt_client_config_t mqtt_cfg={
         .broker.address.uri = "mqtt://mqtt.eclipseprojects.io",
   };
   esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
   esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
   esp_mqtt_client_start(client);
+
+  xTaskCreate(mqtt_publish, "publish",2048,(void*)client, 2, NULL);
 }
 
 void app_main(void)
@@ -63,9 +80,7 @@ void app_main(void)
   wifiInit();
   wifiConnect();
 
-
   vTaskDelay(pdMS_TO_TICKS(2000));
   
   mqtt_init();
-
 }

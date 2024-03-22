@@ -5,13 +5,13 @@
 
 // user defined header
 #include <connect.h>
+#include <stdio.h>
 #include <toggle.h>
 
 static const char *TAG = "HTTPD SERVER";
 
 // reading the html file
 extern const char html[] asm("_binary_test_html_start");
-
 // setup for the home page
 esp_err_t uri_home(httpd_req_t *req) {
   ESP_LOGI(TAG, "uri_handler is starting\n");
@@ -88,7 +88,7 @@ void mdns_service() {
 void app_main() {
   // initializing and connecting to the given AP
   connect_init();
-  connect_sta("podamibe", "Chobhar570))", 10000);
+  connect_sta("nepaldigisys", "NDS_0ffice", 10000);
 
   mdns_service();
 
