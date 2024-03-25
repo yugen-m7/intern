@@ -1,3 +1,4 @@
+#include "esp_rom_sys.h"
 #include <stdio.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
@@ -5,65 +6,77 @@
 #include <nvs_flash.h>
 #include <string.h>
 #include <esp_log.h>
+#include <freertos/semphr.h>
 
-#define DHT 27
+#define DHT 4
 #define tag "DHT"
 
-typedef struct {
-  uint8_t rhi[8];
-  uint8_t rhd[8];
-  uint8_t ti[8];
-  uint8_t td[8];
-  uint8_t cs[8];
-}data[];
+SemaphoreHandle_t uInput_handler;
 
-void reading( uint8_t times,bool state){
-  for(int i=0 ; i<8 ; i++){
-    int j;
-    while(!gpio_get_level(DHT)){
-      vTaskDelay(pdMS_TO_TICKS(5)); 
-    }
-    printf("low done\n");
-    while(gpio_get_level(DHT)==1){
-      printf("high started\n");
-      j++;
-      if(j>6) rhi[i]=1;
-      vTaskDelay(pdMS_TO_TICKS(5)); 
-    }
-    printf("high done\n");
-    vTaskDelay(pdMS_TO_TICKS(10)); 
-  }
-}
+int data[40];
 
-void app_main(void)
-{
+void startSignal();
+int getSignal(int utimeout);
+void processSignal();
 
-  // memset(rhi, '0', sizeof(rhi));
-  // memset(rhd, '0', sizeof(rhi));
-  // memset(ti, '0', sizeof(rhi));
-  // memset(td, '0', sizeof(rhi));
-  // memset(cs, '0', sizeof(rhi));
-
+void startSignal(){
+  gpio_reset_pin(DHT);
+  gpio_pulldown_en(DHT);
   while(1){
     // start signal
     gpio_set_direction(DHT, GPIO_MODE_OUTPUT);
     gpio_set_level(DHT, 0);
-    esp_rom_delay_us(3000);
+    esp_rom_delay_us(2000);
     gpio_set_level(DHT, 1);
     esp_rom_delay_us(25);
-    // gpio_set_direction(DHT, 0);
     gpio_set_direction(DHT, GPIO_MODE_INPUT);
-    vTaskDelay(pdMS_TO_TICKS(140)); 
+    esp_rom_delay_us(140);
+    xSemaphoreGive(uInput_handler);
 
-    ESP_LOGI(tag, "Starting Reading Data");
-
-
-    ESP_LOGI(tag, "Starting Printing Data");
-
-    for(int i=0 ; i<8 ; i++){
-      printf("%d",rhi[0]);
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(3000));
   }
+}
+
+int getSignal(int utimeout){
+  int utime=0;
+    while(gpio_get_level(DHT)==1){
+      ++utime;
+      esp_rom_delay_us(1);
+    }
+  printf("%d\n",utime);
+  if(utimeout>utime){
+
+    return 0;
+  }else{
+    return 1;
+  }
+}
+
+void processSignal(){
+  // data_value data;
+  while(1){
+    memset(data, '0', sizeof(data));
+    uint8_t bits=0;
+    xSemaphoreTake(uInput_handler, portMAX_DELAY);
+    while(bits<40){
+      while(gpio_get_level(DHT)!=1){
+        esp_rom_delay_us(1);
+      }
+      data[bits]=getSignal(60);
+      bits++;
+    }
+    for(int i=0 ; i<40 ; i++){
+       printf("%d ", data[i]);
+    }
+    printf("\n");
+  }
+    esp_rom_delay_us(25);
+}
+
+void app_main(void)
+{
+  uInput_handler = xSemaphoreCreateBinary();
+
+  xTaskCreate(&startSignal, "Start the Signal", 2048, NULL, 2, NULL);
+  xTaskCreate(&processSignal, "processing the Signal", 8088, NULL, 2, NULL);
 }
