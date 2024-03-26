@@ -1,3 +1,4 @@
+#include "esp_attr.h"
 #include <stdio.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
@@ -16,27 +17,36 @@ SemaphoreHandle_t pos_intr_handler;
 SemaphoreHandle_t neg_intr_handler;
 
 int data[40];
-int pos_count;
-int neg_count;
+int pos_count=0;
+int neg_count=0;
+
+int pos_time[44];
+int neg_time[44];
 
 void pos_intr(){
   // printf("\n data collecting \n");
-  xSemaphoreGive(pos_intr_handler);
+    xSemaphoreGive(pos_intr_handler);
 }
 
 void neg_intr(){
   // printf("\n data collecting \n");
-  xSemaphoreGive(neg_intr_handler);
+    xSemaphoreGive(neg_intr_handler);
 }
 
-void signal(void* arg){
+void pos_signal(void* arg){
   while(1){
     xSemaphoreTake(pos_intr_handler, portMAX_DELAY);
+    pos_time[pos_count]=  esp_timer_get_time();
     pos_count++;
-    printf("pos_count: %d\n", pos_count);
+
+  }
+}
+
+void neg_signal(){
+  while(1){
     xSemaphoreTake(neg_intr_handler, portMAX_DELAY);
+    neg_time[neg_count]=  esp_timer_get_time();
     neg_count++;
-    printf("neg_count: %d\n", neg_count);
   }
 }
 
@@ -54,11 +64,14 @@ void startSignal(){
   gpio_isr_handler_add(DHT, pos_intr, NULL);
   gpio_isr_handler_add(DHT_NEG, neg_intr, NULL);
 
-  pos_count=0;
-  neg_count=0;
-  // esp_rom_delay_us(140);
-  // xSemaphoreGive(pos_intr_handler);
-  //
+  for(int i=0 ; i<41 ; i++){
+    printf("%d: %d\n",i ,neg_time[i+1]-pos_time[i-1]);
+  }
+    pos_count=0;
+    neg_count=0;
+    // esp_rom_delay_us(140);
+    // xSemaphoreGive(pos_intr_handler);
+    //
 }
 
 void intr_init(){
@@ -86,6 +99,10 @@ void app_main(void)
   pos_intr_handler = xSemaphoreCreateBinary();
   neg_intr_handler = xSemaphoreCreateBinary();
   
+  memset(pos_time, '0', sizeof(pos_time));
+  memset(neg_time, '0', sizeof(neg_time));
+
+
   intr_init();
 
   esp_timer_create_args_t timer_dht = {
@@ -96,5 +113,7 @@ void app_main(void)
   esp_timer_create(&timer_dht,&timer_dht_handle);
   esp_timer_start_periodic(timer_dht_handle, 2000000);
 
-  xTaskCreate(&signal, "processing the Signal", 2048, NULL, 2, NULL);
+  xTaskCreate(&pos_signal, "processing the Signal", 2048, NULL, 2, NULL);
+  xTaskCreate(&neg_signal, "processing the Signal", 2048, NULL, 2, NULL);
+
 }
