@@ -1,4 +1,3 @@
-#include "hal/gpio_types.h"
 #include <stdio.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
@@ -13,21 +12,31 @@
 
 #define tag "DHT"
 
-SemaphoreHandle_t uInput_handler;
+SemaphoreHandle_t pos_intr_handler;
+SemaphoreHandle_t neg_intr_handler;
 
 int data[40];
-int count;
+int pos_count;
+int neg_count;
 
-void intr_signal(){
+void pos_intr(){
   // printf("\n data collecting \n");
-  xSemaphoreGive(uInput_handler);
+  xSemaphoreGive(pos_intr_handler);
+}
+
+void neg_intr(){
+  // printf("\n data collecting \n");
+  xSemaphoreGive(neg_intr_handler);
 }
 
 void signal(void* arg){
   while(1){
-    xSemaphoreTake(uInput_handler, portMAX_DELAY);
-    count++;
-    printf("%d\n", count);
+    xSemaphoreTake(pos_intr_handler, portMAX_DELAY);
+    pos_count++;
+    printf("pos_count: %d\n", pos_count);
+    xSemaphoreTake(neg_intr_handler, portMAX_DELAY);
+    neg_count++;
+    printf("neg_count: %d\n", neg_count);
   }
 }
 
@@ -35,30 +44,33 @@ void startSignal(){
   gpio_isr_handler_remove(DHT);
   gpio_pulldown_en(DHT);
   gpio_set_direction(DHT, GPIO_MODE_OUTPUT);
+  gpio_set_direction(DHT_NEG, GPIO_MODE_OUTPUT);
   gpio_set_level(DHT, 0);
   esp_rom_delay_us(2000);
   gpio_set_level(DHT, 1);
   esp_rom_delay_us(25);
   gpio_set_direction(DHT, GPIO_MODE_INPUT);
-  gpio_isr_handler_add(DHT, intr_signal, NULL);
-  gpio_isr_handler_add(DHT_NEG, intr_signal, NULL);
+  gpio_set_direction(DHT_NEG, GPIO_MODE_INPUT);
+  gpio_isr_handler_add(DHT, pos_intr, NULL);
+  gpio_isr_handler_add(DHT_NEG, neg_intr, NULL);
 
-  count=0;
+  pos_count=0;
+  neg_count=0;
   // esp_rom_delay_us(140);
-  // xSemaphoreGive(uInput_handler);
+  // xSemaphoreGive(pos_intr_handler);
   //
 }
 
 void intr_init(){
   gpio_install_isr_service(0);
 
-  gpio_config_t signal_pin={
+  gpio_config_t pos_pin={
     .intr_type = GPIO_INTR_POSEDGE,
     .pull_down_en = GPIO_PULLDOWN_ENABLE,
     .pin_bit_mask = (1ULL << DHT),
   };
-  gpio_config(&signal_pin);
-  gpio_isr_handler_add(DHT, intr_signal, NULL);
+  gpio_config(&pos_pin);
+  gpio_isr_handler_add(DHT, pos_intr, NULL);
 
   gpio_config_t neg_pin={
     .intr_type = GPIO_INTR_NEGEDGE,
@@ -66,12 +78,13 @@ void intr_init(){
     .pin_bit_mask = (1ULL << DHT_NEG),
   };
   gpio_config(&neg_pin);
-  gpio_isr_handler_add(DHT_NEG, intr_signal, NULL);
+  gpio_isr_handler_add(DHT_NEG, neg_intr, NULL);
 }
 
 void app_main(void)
 {
-  uInput_handler = xSemaphoreCreateBinary();
+  pos_intr_handler = xSemaphoreCreateBinary();
+  neg_intr_handler = xSemaphoreCreateBinary();
   
   intr_init();
 
