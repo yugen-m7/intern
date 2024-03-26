@@ -27,7 +27,6 @@ void signal(void* arg){
   while(1){
     xSemaphoreTake(uInput_handler, portMAX_DELAY);
     count++;
-    printf("Possdfasdfasdf: %d\n", count);
   }
 }
 
@@ -42,6 +41,7 @@ void startSignal(){
   gpio_set_direction(DHT, GPIO_MODE_INPUT);
   gpio_isr_handler_add(DHT, intr_signal, NULL);
 
+  printf("%d\n", count);
   count=0;
   // esp_rom_delay_us(140);
   // xSemaphoreGive(uInput_handler);
