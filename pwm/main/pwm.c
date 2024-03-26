@@ -1,4 +1,3 @@
-#include "hal/ledc_types.h"
 #include <stdio.h>
 #include <driver/ledc.h>
 

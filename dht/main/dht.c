@@ -1,82 +1,87 @@
-#include "esp_rom_sys.h"
+#include "hal/gpio_types.h"
 #include <stdio.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <nvs_flash.h>
 #include <string.h>
 #include <esp_log.h>
 #include <freertos/semphr.h>
+#include <esp_timer.h>
 
-#define DHT 4
+#define DHT 27
+#define DHT_NEG 26
+
 #define tag "DHT"
 
 SemaphoreHandle_t uInput_handler;
 
 int data[40];
+int count;
 
-void startSignal();
-int getSignal(int utimeout);
-void processSignal();
+void intr_signal(){
+  // printf("\n data collecting \n");
+  xSemaphoreGive(uInput_handler);
+}
+
+void signal(void* arg){
+  while(1){
+    xSemaphoreTake(uInput_handler, portMAX_DELAY);
+    count++;
+    printf("%d\n", count);
+  }
+}
 
 void startSignal(){
-  gpio_reset_pin(DHT);
+  gpio_isr_handler_remove(DHT);
   gpio_pulldown_en(DHT);
-  while(1){
-    // start signal
-    gpio_set_direction(DHT, GPIO_MODE_OUTPUT);
-    gpio_set_level(DHT, 0);
-    esp_rom_delay_us(2000);
-    gpio_set_level(DHT, 1);
-    esp_rom_delay_us(25);
-    gpio_set_direction(DHT, GPIO_MODE_INPUT);
-    esp_rom_delay_us(140);
-    xSemaphoreGive(uInput_handler);
+  gpio_set_direction(DHT, GPIO_MODE_OUTPUT);
+  gpio_set_level(DHT, 0);
+  esp_rom_delay_us(2000);
+  gpio_set_level(DHT, 1);
+  esp_rom_delay_us(25);
+  gpio_set_direction(DHT, GPIO_MODE_INPUT);
+  gpio_isr_handler_add(DHT, intr_signal, NULL);
+  gpio_isr_handler_add(DHT_NEG, intr_signal, NULL);
 
-    vTaskDelay(pdMS_TO_TICKS(3000));
-  }
+  count=0;
+  // esp_rom_delay_us(140);
+  // xSemaphoreGive(uInput_handler);
+  //
 }
 
-int getSignal(int utimeout){
-  int utime=0;
-    while(gpio_get_level(DHT)==1){
-      ++utime;
-      esp_rom_delay_us(1);
-    }
-  printf("%d\n",utime);
-  if(utimeout>utime){
+void intr_init(){
+  gpio_install_isr_service(0);
 
-    return 0;
-  }else{
-    return 1;
-  }
-}
+  gpio_config_t signal_pin={
+    .intr_type = GPIO_INTR_POSEDGE,
+    .pull_down_en = GPIO_PULLDOWN_ENABLE,
+    .pin_bit_mask = (1ULL << DHT),
+  };
+  gpio_config(&signal_pin);
+  gpio_isr_handler_add(DHT, intr_signal, NULL);
 
-void processSignal(){
-  // data_value data;
-  while(1){
-    memset(data, '0', sizeof(data));
-    uint8_t bits=0;
-    xSemaphoreTake(uInput_handler, portMAX_DELAY);
-    while(bits<40){
-      while(gpio_get_level(DHT)!=1){
-        esp_rom_delay_us(1);
-      }
-      data[bits]=getSignal(60);
-      bits++;
-    }
-    for(int i=0 ; i<40 ; i++){
-       printf("%d ", data[i]);
-    }
-    printf("\n");
-  }
-    esp_rom_delay_us(25);
+  gpio_config_t neg_pin={
+    .intr_type = GPIO_INTR_NEGEDGE,
+    .pull_down_en = GPIO_PULLDOWN_ENABLE,
+    .pin_bit_mask = (1ULL << DHT_NEG),
+  };
+  gpio_config(&neg_pin);
+  gpio_isr_handler_add(DHT_NEG, intr_signal, NULL);
 }
 
 void app_main(void)
 {
   uInput_handler = xSemaphoreCreateBinary();
+  
+  intr_init();
 
-  xTaskCreate(&startSignal, "Start the Signal", 2048, NULL, 2, NULL);
-  xTaskCreate(&processSignal, "processing the Signal", 8088, NULL, 2, NULL);
+  esp_timer_create_args_t timer_dht = {
+     .callback = startSignal,
+     .name = "DHT timer",
+  };
+  esp_timer_handle_t timer_dht_handle;
+  esp_timer_create(&timer_dht,&timer_dht_handle);
+  esp_timer_start_periodic(timer_dht_handle, 2000000);
+
+  xTaskCreate(&signal, "processing the Signal", 2048, NULL, 2, NULL);
 }
