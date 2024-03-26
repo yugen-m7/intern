@@ -27,7 +27,7 @@ void signal(void* arg){
   while(1){
     xSemaphoreTake(uInput_handler, portMAX_DELAY);
     count++;
-    printf("%d\n", count);
+    printf("Possdfasdfasdf: %d\n", count);
   }
 }
 
@@ -41,7 +41,6 @@ void startSignal(){
   esp_rom_delay_us(25);
   gpio_set_direction(DHT, GPIO_MODE_INPUT);
   gpio_isr_handler_add(DHT, intr_signal, NULL);
-  gpio_isr_handler_add(DHT_NEG, intr_signal, NULL);
 
   count=0;
   // esp_rom_delay_us(140);
@@ -59,14 +58,6 @@ void intr_init(){
   };
   gpio_config(&signal_pin);
   gpio_isr_handler_add(DHT, intr_signal, NULL);
-
-  gpio_config_t neg_pin={
-    .intr_type = GPIO_INTR_NEGEDGE,
-    .pull_down_en = GPIO_PULLDOWN_ENABLE,
-    .pin_bit_mask = (1ULL << DHT_NEG),
-  };
-  gpio_config(&neg_pin);
-  gpio_isr_handler_add(DHT_NEG, intr_signal, NULL);
 }
 
 void app_main(void)
