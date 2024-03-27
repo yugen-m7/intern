@@ -21,7 +21,7 @@ int neg_count=0;
 int pos_time[44];
 int neg_time[44];
 
-int dht_data[40];
+bool dht_data[40];
 uint8_t data[5];
 
 float humidity;
@@ -74,7 +74,7 @@ void process_signal(){
       
       for(int j=0 ; j<8 ; j++ ){
         int k=7-(j%8);
-        if(dht_data[j+1]==1){data[0]|=(1<<k);}
+        if(dht_data[j+1]){data[0]|=(1<<k);}
       }
       for(int j=8 ; j<16 ; j++ ){
         int k=7-(j%8);
@@ -94,15 +94,16 @@ void process_signal(){
       }
 
       humidity = data[0];
-      humidity *= 0x100;					// >> 8
+      humidity *= 0x100;					
       humidity += data[1];
-      humidity /= 10;						// get the decimal
+      humidity /= 10;						
 
       temperature = data[2];	
       temperature *= 0x100;				// >> 8
       temperature += data[3];
       temperature /= 10;
-      printf("Humidity:%4f\nTemperature:%4.2f", humidity, temperature); printf("\n\n");
+
+      printf("Humidity:%4.2f\nTemperature:%4.2f", humidity, temperature); printf("\n\n");
       pos_count=0;
       neg_count=0;
     }
