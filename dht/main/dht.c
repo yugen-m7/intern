@@ -1,5 +1,6 @@
 #include "esp_attr.h"
 #include "freertos/projdefs.h"
+#include <math.h>
 #include <stdio.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
@@ -21,6 +22,7 @@ int pos_time[44];
 int neg_time[44];
 
 int dht_data[40];
+int data[5];
 
 void pos_intr(){
     pos_time[pos_count]=  esp_timer_get_time();
@@ -51,6 +53,7 @@ void startSignal(){
 }
 
 void process_signal(){
+  int bit8[] = {128, 64, 32, 16, 8, 4, 2, 1};
   while(1){
     if(pos_count>40 && neg_count>40){
       vTaskDelay(pdMS_TO_TICKS(10));
@@ -59,12 +62,29 @@ void process_signal(){
         // printf("%2.d: %2.d\n",i ,utime);
         dht_data[i] = utime>60 ? 1 : 0; 
       }
-
       for(int i=0; i<40; i++){
         if((i%8)==0) printf("  ");
         printf("%d", dht_data[i+1]);
-        
       }
+      printf("\n");
+
+      memset(data, 0, sizeof(data));
+      for(int j=0 ; j<8 ; j++ ){
+           data[0]+=(dht_data[j+1]*bit8[(j)%8]);
+      }
+      for(int j=8 ; j<16 ; j++ ){
+           data[1]+=(dht_data[j+1]*bit8[(j)%8]);
+      }
+      for(int j=16 ; j<24 ; j++ ){
+           data[2]+=(dht_data[j+1]*bit8[(j)%8]);
+      }
+      for(int j=24 ; j<32 ; j++ ){
+           data[3]+=(dht_data[j+1]*bit8[(j)%8]);
+      }
+      for(int j=32 ; j<40 ; j++ ){
+           data[4]+=(dht_data[j+1]*bit8[(j)%8]);
+      }
+      for(int i=0 ; i<5 ; i++) printf("%10d", data[i]); 
       printf("\n\n");
       pos_count=0;
       neg_count=0;
