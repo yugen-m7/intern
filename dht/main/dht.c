@@ -22,7 +22,10 @@ int pos_time[44];
 int neg_time[44];
 
 int dht_data[40];
-int data[5];
+uint8_t data[5];
+
+float humidity;
+float temperature;
 
 void pos_intr(){
     pos_time[pos_count]=  esp_timer_get_time();
@@ -53,7 +56,6 @@ void startSignal(){
 }
 
 void process_signal(){
-  int bit8[] = {128, 64, 32, 16, 8, 4, 2, 1};
   while(1){
     if(pos_count>40 && neg_count>40){
       vTaskDelay(pdMS_TO_TICKS(10));
@@ -69,23 +71,38 @@ void process_signal(){
       printf("\n");
 
       memset(data, 0, sizeof(data));
+      
       for(int j=0 ; j<8 ; j++ ){
-           data[0]+=(dht_data[j+1]*bit8[(j)%8]);
+        int k=7-(j%8);
+        if(dht_data[j+1]==1){data[0]|=(1<<k);}
       }
       for(int j=8 ; j<16 ; j++ ){
-           data[1]+=(dht_data[j+1]*bit8[(j)%8]);
+        int k=7-(j%8);
+        if(dht_data[j+1])data[1]|=(1<<k);
       }
-      for(int j=16 ; j<24 ; j++ ){
-           data[2]+=(dht_data[j+1]*bit8[(j)%8]);
+     for(int j=16 ; j<24 ; j++ ){
+        int k=7-(j%8);
+        if(dht_data[j+1])data[2]|=(1<<k);
       }
       for(int j=24 ; j<32 ; j++ ){
-           data[3]+=(dht_data[j+1]*bit8[(j)%8]);
+        int k=7-(j%8);
+        if(dht_data[j+1])data[3]|=(1<<k);
       }
       for(int j=32 ; j<40 ; j++ ){
-           data[4]+=(dht_data[j+1]*bit8[(j)%8]);
+        int k=7-(j%8);
+        if(dht_data[j+1])data[4]|=(1<<k);
       }
-      for(int i=0 ; i<5 ; i++) printf("%10d", data[i]); 
-      printf("\n\n");
+
+      humidity = data[0];
+      humidity *= 0x100;					// >> 8
+      humidity += data[1];
+      humidity /= 10;						// get the decimal
+
+      temperature = data[2];	
+      temperature *= 0x100;				// >> 8
+      temperature += data[3];
+      temperature /= 10;
+      printf("Humidity:%4f\nTemperature:%4.2f", humidity, temperature); printf("\n\n");
       pos_count=0;
       neg_count=0;
     }
