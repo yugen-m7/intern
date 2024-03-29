@@ -48,6 +48,7 @@ void startSignal(){
   esp_rom_delay_us(2000);
   gpio_set_level(DHT, 1);
   esp_rom_delay_us(25);
+  gpio_set_level(DHT, 0);
   gpio_set_direction(DHT, GPIO_MODE_INPUT);
   gpio_set_direction(DHT_NEG, GPIO_MODE_INPUT);
   gpio_isr_handler_add(DHT, pos_intr, NULL);
@@ -107,7 +108,7 @@ void process_signal(){
       pos_count=0;
       neg_count=0;
     }
-    // vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 

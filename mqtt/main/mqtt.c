@@ -63,7 +63,7 @@ void MQTTLogic(int sensorReading)
     {
     case WIFI_CONNEECTED:
       // client = esp_mqtt_client_init(&mqttConfig);
-      esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
+      esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, esp_mqtt_event_handle, client);
       esp_mqtt_client_start(client);
       break;
     case MQTT_CONNECTED:

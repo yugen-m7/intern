@@ -1,6 +1,3 @@
-#include "esp_attr.h"
-#include "freertos/idf_additions.h"
-#include <math.h>
 #include <stdio.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
@@ -8,11 +5,9 @@
 #include <freertos/semphr.h>
 #include <string.h>
 #include <esp_log.h>
-#include <esp_err.h>
 #include <freertos/semphr.h>
 #include <esp_timer.h>
 #include <dht.h>
-#include <driver/rmt_rx.h>
 
 #define DHT_TIMEOUT_ERROR -2
 #define DHT_CHECKSUM_ERROR -1
@@ -32,15 +27,22 @@ int neg_time[44];
 bool dht_data[40];
 uint8_t data[5];
 
+
 float humidity;
 float temperature;
 
-// SemaphoreHandle_t signal_handler;
+
 TaskHandle_t signal_handler;
 
 // function prototype
 void startSignal();
 int process_signal();
+
+
+float get_humidity(){ return humidity; }
+
+float get_temperature(){ return temperature; }
+
 
 static IRAM_ATTR void pos_intr(){
   pos_time[pos_count]=  esp_timer_get_time();
@@ -48,9 +50,10 @@ static IRAM_ATTR void pos_intr(){
 }
 
 static IRAM_ATTR void neg_intr(){
-  neg_time[neg_ount]=  esp_timer_get_time();
+  neg_time[neg_count]=  esp_timer_get_time();
   neg_count++;
 }
+
 
 void error_handler(int response){
   switch(response){
@@ -61,7 +64,7 @@ void error_handler(int response){
       ESP_LOGE(tag, "DHT_CHECKOUT_ERROR");
       break;
     case DHT_OK:
-      printf("Humidity:%4.2f\nTemperature:%4.2f", humidity, temperature); printf("\n\n");
+      // printf("Humidity:%4.2f\nTemperature:%4.2f", get_humidity(), get_temperature()); printf("\n\n");
       break;
     default:
       ESP_LOGE(tag, "DHT_UNKNOWN_ERROR");
@@ -127,8 +130,6 @@ int process_signal(){
 
   uint8_t checksum = (data[0]+data[1]+data[2]+data[3])& 0xFF;
 
-  if(checksum!=data[4]) return DHT_CHECKSUM_ERROR;
-
   humidity = data[0];
   humidity *= 0x100;					
   humidity += data[1];
@@ -138,13 +139,15 @@ int process_signal(){
   temperature *= 0x100;				// >> 8
   temperature += data[3];
   temperature /= 10;
-  // ESP_LOGI(tag,"Humidity:%4.2f\nTemperature:%4.2f", humidity, temperature);
+
+  if(checksum!=data[4]) return DHT_CHECKSUM_ERROR;
+
   return ESP_OK;
 }
 
+
 void dht_output(){
   while(1){
-    // xSemaphoreTake(signal_handler, portMAX_DELAY);
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     error_handler(process_signal());
 
@@ -171,34 +174,13 @@ void intr_init(){
   };
   gpio_config(&neg_pin);
   gpio_isr_handler_add(DHT_NEG, neg_intr, NULL);
-
-rmt_channel_handle_t rx_chan = NULL;
-rmt_rx_channel_config_t rx_chan_config = {
-    .clk_src = RMT_CLK_SRC_DEFAULT,   // select source clock
-    .resolution_hz = 1 * 1000 * 1000, // 1 MHz tick resolution, i.e., 1 tick = 1 µs
-    .mem_block_symbols = 64,          // memory block size, 64 * 4 = 256 Bytes
-    .gpio_num = 27,                    // GPIO number
-    .flags.invert_in = false,         // do not invert input signal
-    .flags.with_dma = false,          // do not need DMA backend
-};
-ESP_ERROR_CHECK(rmt_new_rx_channel(&rx_chan_config, &rx_chan));
 }
 
 
 void dht_init()
 {
-  memset(pos_time, 0, sizeof(pos_time));
-  memset(neg_time, 0, sizeof(neg_time));
-  memset(dht_data, 0, sizeof(dht_data));
-  memset(data, 0, sizeof(data));
-  // signal_handler = xSemaphoreCreateBinary();
-
-
   intr_init();
 
-  // timer_init();
-
-  xTaskCreate(startSignal, "Start Signal", 2048, NULL, 2, NULL);
-  // xTaskCreate(dht_output, "Output value", 2048, NULL, 20, &signal_handler);
-  xTaskCreatePinnedToCore(dht_output, "output value", 2048, NULL, 8, &signal_handler, 1);
+  xTaskCreatePinnedToCore(startSignal, "Start Signal", 2048, NULL, 4, NULL, 1);
+  xTaskCreate(dht_output, "output value", 2048, NULL, 2, &signal_handler);
 }

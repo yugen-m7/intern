@@ -49,19 +49,22 @@ static void mqtt_event_handler(void *event_handler_arg, esp_event_base_t event_b
 }
 
 
-// static void mqtt_publish(void* args)
-// {
-//     // uint8_t* data = 0; 
-//     // char* message=(char*)(&humidity);
-//     // char* message="hello world";
-//     esp_mqtt_client_handle_t client = ((esp_mqtt_client_handle_t)args);
-//     while (true)
-//     {
-//         esp_mqtt_client_publish(client, "esp", (char*)&humidity, sizeof(&humidity), 1, 0);
-//         // data++;
-//         vTaskDelay(pdMS_TO_TICKS(1000));
-//     }
-// }
+static void mqtt_publish(void* args)
+{
+    // uint8_t* data = 0;
+    // char* message=(char*)(&humidity);
+    // char* message="hello world";
+    char data[16];
+    esp_mqtt_client_handle_t client = ((esp_mqtt_client_handle_t)args);
+    while (true)
+    {
+        snprintf(data, sizeof(data), "%.2f\t%.2f\n",get_humidity(),get_temperature());
+        esp_mqtt_client_publish(client, "esp", data, sizeof(data), 1, 0);
+        // printf("%s\n",data);
+        // data++;
+        vTaskDelay(pdMS_TO_TICKS(4000));
+    }
+}
 
 static void mqtt_init(){
   esp_mqtt_client_config_t mqtt_cfg={
@@ -71,7 +74,7 @@ static void mqtt_init(){
   esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
   esp_mqtt_client_start(client);
 
-  // xTaskCreate(mqtt_publish, "publish",2048,(void*)client, 2, NULL);
+  xTaskCreate(mqtt_publish, "publish",2048,(void*)client, 2, NULL);
 }
 
 void app_main(void)
@@ -79,8 +82,8 @@ void app_main(void)
   wifiInit();
   wifiConnect();
   //
-  // vTaskDelay(pdMS_TO_TICKS(2000));
+  vTaskDelay(pdMS_TO_TICKS(2000));
   //
-  // mqtt_init();
+  mqtt_init();
   dht_init();
 }
